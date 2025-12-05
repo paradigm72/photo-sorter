@@ -18,7 +18,7 @@ export default async function PeoplePage() {
   return (
     <div>
       <h2>People</h2>
-      <p>Showing photos where faces were detected (clustering can come later).</p>
+      <p>Showing photos where faces were detected.</p>
       <div
         style={{
           display: "grid",
@@ -30,16 +30,21 @@ export default async function PeoplePage() {
           <div
             key={p.id}
             style={{
-              border: "1px solid #ddd",
-              padding: "0.5rem",
+              border: "1px solid var(--border)",
+              padding: "0.25rem",
               borderRadius: "8px",
               overflow: "hidden",
               fontSize: "0.85rem",
             }}
           >
-            <div style={{ marginBottom: "0.25rem" }}>
-              Faces: {p.face_count} <br />
-              <span style={{ wordBreak: "break-all" }}>{p.path}</span>
+            <img
+              src={`/api/photo/${p.id}/image`}
+              alt={`photo-${p.id}`}
+              style={{ width: "100%", height: 140, objectFit: "cover", display: "block", borderRadius: 6 }}
+              loading="lazy"
+            />
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)" }}>
+              Faces: {p.face_count}
             </div>
           </div>
         ))}

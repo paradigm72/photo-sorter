@@ -8,8 +8,16 @@ async function getStats() {
   return res.json() as Promise<{ total: number; with_faces: number }>;
 }
 
+async function getPeople() {
+  const url = API_BASE ? `${API_BASE}/people` : `/api/people`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return [];
+  return (await res.json()) as Array<{ id: number; path: string; face_count: number }>;
+}
+
 export default async function Page() {
   const stats = await getStats();
+  const people = await getPeople();
   return (
     <div>
       <h2>Dashboard</h2>
@@ -18,6 +26,7 @@ export default async function Page() {
       <form action={`/api/scan`} method="post">
         <button type="submit">Rescan Photos</button>
       </form>
+      {/* people preview removed from Dashboard per UX request */}
     </div>
   );
 }
