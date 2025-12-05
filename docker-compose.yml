@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: photo-sorter-backend
+    environment:
+      - PHOTOS_ROOT=/photos
+      - DB_PATH=/data/photos.db
+    volumes:
+      - /Volumes/photo/pictures/pictures_25:/photos:ro      # adjust to your macOS mount path
+      - ./data:/data
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: photo-sorter-frontend
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
