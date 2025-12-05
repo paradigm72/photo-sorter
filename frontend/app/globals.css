@@ -12,3 +12,99 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+/*# Default to dark theme (user-visible default)*/
+:root {
+  --bg: #0b1220;
+  --text: #e6edf3;
+  --muted: #9aa6b2;
+  --border: #1f2937;
+  --link: #58a6ff;
+}
+
+/* explicit dark override when user selects dark */
+html[data-theme="dark"] {
+  --bg: #0b1220;
+  --text: #e6edf3;
+  --muted: #9aa6b2;
+  --border: #1f2937;
+  --link: #58a6ff;
+}
+
+/* explicit light override when user selects light */
+html[data-theme="light"] {
+  --bg: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --link: #0366d6;
+}
+
+/* Respect OS preference: if the system prefers light, use light defaults */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --link: #0366d6;
+  }
+}
+
+/* Apply colors */
+html, body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  background: transparent;
+  color: var(--text);
+}
+
+header h1 { margin: 0; }
+
+header nav a { color: var(--link); }
+
+/* subtle borders */
+header { border-bottom: 1px solid var(--border); }
+
+/* small utility */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 1rem;
+}
+
+.theme-toggle .theme-btn {
+  background: transparent;
+  border: none;
+  color: var(--link);
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.9rem;
+}
+.theme-toggle .theme-btn:hover {
+  text-decoration: underline;
+}
+.theme-toggle .theme-btn-active {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.theme-toggle .theme-btn svg {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  fill: currentColor;
+}
+
+.theme-toggle .theme-btn { color: var(--muted); }
+.theme-toggle .theme-btn-active { color: var(--link); }
+
+/* move toggle to header right when header is flex */
+.header-right {
+  margin-left: auto;
+}
+
