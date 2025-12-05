@@ -1,3 +1,10 @@
 data/photos.db
 data/photos.db-shm
 data/photos.db-wal
+
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# macOS
+.DS_Store
