@@ -7,7 +7,7 @@ services:
       - PHOTOS_ROOT=/photos
       - DB_PATH=/data/photos.db
     volumes:
-      - /Volumes/photo/pictures/pictures_25:/photos:ro      # adjust to your macOS mount path
+      - /Volumes/photo/pictures/pictures25:/photos:ro      # adjust to your macOS mount path
       - ./data:/data
     ports:
       - "8000:8000"
