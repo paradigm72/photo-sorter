@@ -4,12 +4,21 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import os, mimetypes
 from fastapi.middleware.cors import CORSMiddleware
+from threading import Thread
+import threading
+import time
 
 from db import init_db, get_conn
 from scanner import scan_photos
 
 app = FastAPI(title="Photo Sorter API")
 init_db()
+
+# Scan thread state
+_scan_lock = threading.Lock()
+_scan_thread: Thread | None = None
+_scan_running = False
+_scan_running_type: str | None = None  # 'incremental' or 'full'
 
 # Where photos are mounted inside the container
 PHOTOS_ROOT = Path(os.environ.get("PHOTOS_ROOT", "/photos")).resolve()
@@ -22,10 +31,57 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def _start_background_scan(full: bool = False):
+    """Start a background scan. If `full` is True, clear the DB first."""
+    global _scan_thread, _scan_running, _scan_running_type
+
+    with _scan_lock:
+        if _scan_running:
+            return False
+
+        def _run_scan():
+            global _scan_running, _scan_running_type
+            try:
+                _scan_running = True
+                _scan_running_type = "full" if full else "incremental"
+                if full:
+                    # clear existing rows then rescan
+                    with get_conn() as conn:
+                        cur = conn.cursor()
+                        cur.execute("DELETE FROM photos")
+                        conn.commit()
+                scan_photos()
+            finally:
+                _scan_running = False
+                _scan_running_type = None
+
+        _scan_thread = Thread(target=_run_scan, daemon=True)
+        _scan_thread.start()
+        return True
+
+
 @app.post("/scan")
 def api_scan():
-    scan_photos()
-    return {"status": "ok"}
+    started = _start_background_scan(full=False)
+    return {"status": "started" if started else "already_running"}
+
+
+@app.post("/scan/full")
+def api_scan_full():
+    started = _start_background_scan(full=True)
+    return {"status": "started" if started else "already_running"}
+
+
+@app.get("/scan/status")
+def scan_status():
+    """Return whether a background scan is running and basic stats, plus the scan type."""
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM photos")
+        total = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM photos WHERE has_faces = 1")
+        with_faces = cur.fetchone()[0]
+    return {"running": bool(_scan_running), "type": _scan_running_type, "total": total, "with_faces": with_faces}
 
 @app.get("/stats")
 def stats():
@@ -46,7 +102,6 @@ def people():
             FROM photos
             WHERE has_faces = 1
             ORDER BY face_count DESC
-            LIMIT 200
         """)
         rows = cur.fetchall()
     return [
@@ -70,10 +125,11 @@ def places():
 
 
 @app.get("/photos")
-def list_photos(limit: int = 500, year: int | None = None, month: int | None = None):
+def list_photos(limit: int | None = None, year: int | None = None, month: int | None = None):
     """Return a list of photos with basic metadata.
 
-    Optional `year` and `month` can filter results. Limit defaults to 500.
+    Optional `year` and `month` can filter results. If `limit` is omitted, all
+    matching rows are returned (use with care for very large collections).
     """
     q = "SELECT id, path, year, month, has_faces, face_count FROM photos"
     params = []
@@ -86,8 +142,10 @@ def list_photos(limit: int = 500, year: int | None = None, month: int | None = N
         params.append(month)
     if conds:
         q += " WHERE " + " AND ".join(conds)
-    q += " ORDER BY id DESC LIMIT ?"
-    params.append(limit)
+    q += " ORDER BY id DESC"
+    if limit is not None:
+        q += " LIMIT ?"
+        params.append(limit)
     with get_conn() as conn:
         cur = conn.cursor()
         cur.execute(q, tuple(params))

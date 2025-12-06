@@ -15,6 +15,8 @@ async function getPeople() {
   return (await res.json()) as Array<{ id: number; path: string; face_count: number }>;
 }
 
+import RescanControls from "../components/RescanControls";
+
 export default async function Page() {
   const stats = await getStats();
   const people = await getPeople();
@@ -23,9 +25,8 @@ export default async function Page() {
       <h2>Dashboard</h2>
       <p>Total photos: {stats.total}</p>
       <p>Photos with people: {stats.with_faces}</p>
-      <form action={`/api/scan`} method="post">
-        <button type="submit">Rescan Photos</button>
-      </form>
+      {/* client component handles POST and polling */}
+      <RescanControls initialTotal={stats.total} />
       {/* people preview removed from Dashboard per UX request */}
     </div>
   );

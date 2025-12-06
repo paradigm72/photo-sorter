@@ -13,11 +13,16 @@ async function getTimes(): Promise<TimeBucket[]> {
   return res.json();
 }
 
-async function getPhotos(limit = 500) {
-  const res = await fetch(`${API_BASE}/photos?limit=${limit}`, { cache: "no-store" });
+async function getPhotos(limit?: number) {
+  const url = limit ? `${API_BASE}/photos?limit=${limit}` : `${API_BASE}/photos`;
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return [];
   return res.json();
 }
+
+// Date inference should be handled on the backend; the scanner now populates
+// `year`/`month` when possible. Removing client-side inference keeps a single
+// source of truth and avoids duplication.
 
 function formatMonth(m: number) {
   return String(m).padStart(2, "0");
@@ -25,7 +30,7 @@ function formatMonth(m: number) {
 
 export default async function TimesPage() {
   const buckets = await getTimes();
-  const photos = await getPhotos(1000);
+  const photos = await getPhotos();
   // group photos by year-month
   const groups: Record<string, Array<any>> = {};
   photos.forEach((p: any) => {
@@ -50,7 +55,7 @@ export default async function TimesPage() {
                 <p style={{ margin: 0, color: 'var(--muted)' }}>No preview available</p>
               ) : (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {group.slice(0, 6).map((p: any) => (
+                  {group.map((p: any) => (
                     <img key={p.id} src={`/api/photo/${p.id}/image`} alt={`p-${p.id}`} style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 6 }} loading="lazy" />
                   ))}
                 </div>
