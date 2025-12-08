@@ -23,8 +23,6 @@ export default async function Page() {
   return (
     <div>
       <h2>Dashboard</h2>
-      <p>Total photos: {stats.total}</p>
-      <p>Photos with people: {stats.with_faces}</p>
       {/* client component handles POST and polling */}
       <RescanControls initialTotal={stats.total} />
       {/* people preview removed from Dashboard per UX request */}

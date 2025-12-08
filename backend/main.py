@@ -1,6 +1,8 @@
 # backend/main.py
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from io import BytesIO
+from PIL import Image
 from pathlib import Path
 import os, mimetypes
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,9 +12,18 @@ import time
 
 from db import init_db, get_conn
 from scanner import scan_photos
+import logging
 
 app = FastAPI(title="Photo Sorter API")
 init_db()
+
+# thumbnail / general HTTP logging
+logger = logging.getLogger("photo-sorter.thumbnail")
+if not logger.handlers:
+    h = logging.StreamHandler()
+    h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logger.addHandler(h)
+logger.setLevel(logging.INFO)
 
 # Scan thread state
 _scan_lock = threading.Lock()
@@ -205,3 +216,60 @@ def photo_image(photo_id: int):
 
     mime = mimetypes.guess_type(str(photo_path))[0] or "application/octet-stream"
     return FileResponse(str(photo_path), media_type=mime, headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/photo/{photo_id}/thumbnail")
+def photo_thumbnail(photo_id: int, max_w: int = 480, max_h: int = 360):
+    """Return a browser-friendly JPEG thumbnail for the photo.
+
+    This attempts to open the original file with Pillow and convert to an
+    RGB JPEG thumbnail. If Pillow cannot open the file (e.g. HEIC without
+    `pillow-heif` installed), the endpoint will return a 415 with a helpful
+    message. You can install `pillow-heif` in the backend image to add HEIC
+    support.
+    """
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT path FROM photos WHERE id = ?", (photo_id,))
+        row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    photo_path = Path(row[0])
+    try:
+        photo_path = photo_path.resolve()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    try:
+        if not photo_path.is_file():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+    except AttributeError:
+        if not photo_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+    try:
+        logger.info("Attempting thumbnail generation for %s (max %dx%d)", photo_path, max_w, max_h)
+        with Image.open(photo_path) as im:
+            orig_size = im.size
+            im_rgb = im.convert("RGB")
+            im_rgb.thumbnail((max_w, max_h))
+            thumb_size = im_rgb.size
+            buf = BytesIO()
+            im_rgb.save(buf, format="JPEG", quality=85)
+            data_len = buf.tell()
+            buf.seek(0)
+            logger.info("Thumbnail generated for %s: orig=%s thumb=%s bytes=%d", photo_path, orig_size, thumb_size, data_len)
+            return StreamingResponse(buf, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=3600"})
+    except Exception as e:
+        # Pillow couldn't open/convert the image (common for HEIC when
+        # pillow-heif isn't installed). Return a 415 with guidance.
+        logger.exception("Failed to create thumbnail for %s: %s", photo_path, e)
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                "Unable to generate thumbnail for this image in the current environment. "
+                "Install `pillow-heif` (and its native dependencies) in the backend image to add HEIC support, "
+                "or fallback to converting images to JPEGs before mounting."
+            ),
+        )

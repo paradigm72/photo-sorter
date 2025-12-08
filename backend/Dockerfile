@@ -4,10 +4,13 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
+    pkg-config \
+    libde265-dev \
     libopenblas-dev \
     liblapack-dev \
     libjpeg-dev \
     libpng-dev \
+    libheif-dev \
     libglib2.0-0 \
     libxrender1 \
     libsm6 \

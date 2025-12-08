@@ -56,7 +56,7 @@ export default async function TimesPage() {
               ) : (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {group.map((p: any) => (
-                    <img key={p.id} src={`/api/photo/${p.id}/image`} alt={`p-${p.id}`} style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 6 }} loading="lazy" />
+                    <img key={p.id} src={`/api/photo/${p.id}/thumbnail`} alt={`p-${p.id}`} style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 6 }} loading="lazy" />
                   ))}
                 </div>
               )}
